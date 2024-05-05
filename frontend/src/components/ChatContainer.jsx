@@ -1,30 +1,39 @@
-import React, { useEffect, useRef, useState } from 'react';
-import styled from 'styled-components';
-import axios from 'axios';
-import { getAllMsgRoute, sendMsgRoute } from '../utils/apiRoutes';
-
-import ChatInput from './ChatInput';
+import React, { useEffect, useRef, useState } from 'react'
+import styled from 'styled-components'
+import axios from 'axios'
+import { getAllMsgRoute, sendMsgRoute } from '../utils/apiRoutes'
+import ChatInput from './ChatInput'
+import Logout from './Logout';
 
 const ChatContainer = ({ currentChat, currentUser, socket }) => {
-  const [messages, setMessages] = useState([]);
-  const scrollRef = useRef();
- const handleSendMsg = async (msg) => {
+  const [messages, setMessages] = useState([])
+  const messagesContainerRef = useRef(null)
+
+  const handleSendMsg = async msg => {
     try {
+      bringIntoView();
       socket.current.emit('send-msg', {
         to: currentChat._id,
         from: currentUser._id,
         message: msg
-      });
+      })
       await axios.post(sendMsgRoute, {
         from: currentUser._id,
         to: currentChat._id,
         message: msg
-      });
+      })
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error sending message:', error)
     }
-  };
-
+  }
+  useEffect(() => {
+    if (socket.current) {
+      socket.current.on('msg-receive', msg => {
+        setMessages(prevMessages => [...prevMessages, msg])
+        bringIntoView();
+      })
+    }
+  }, [socket])
   useEffect(() => {
     const getMessages = async () => {
       try {
@@ -32,79 +41,100 @@ const ChatContainer = ({ currentChat, currentUser, socket }) => {
           const res = await axios.post(getAllMsgRoute, {
             from: currentUser._id,
             to: currentChat._id
-          });
+          })
           setMessages(res.data.messages);
         }
       } catch (error) {
-        console.error('Error fetching messages:', error);
+        console.error('Error fetching messages:', error)
       }
-    };
-
-    getMessages();
-  }, [currentChat?._id, socket.current,handleSendMsg]);
-
-  useEffect(() => {
-    if (socket.current) {
-      socket.current.on('msg-receive', msg => {
-        console.log("message vachindi bro");
-        setMessages(prevMessages => [...prevMessages, msg]);
-      });
     }
-  }, [socket]);
 
- 
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    getMessages()
+  }, [currentChat?._id, socket.current, handleSendMsg])
+
+
+  const bringIntoView = () => {
+    messagesContainerRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   return (
     <Container>
+      <div className='header'>
+        <div className='user-details'>
+          <div className='avatar'>
+            <img src={`data:image/svg+xml;base64,${currentChat.avatarImage}`} />
+          </div>
+          <div className='username'>
+            <h3>{currentUser.username}</h3>
+          </div>
+        </div>
+        <Logout />
+      </div>
       <div className='chat-messages'>
         {messages.map((msg, index) => (
-          <div key={index}>
-            <div className={`msg ${msg.fromSelf ? 'sent' : 'received'}`}>
-              <div className='content'>
-                <p>{msg.message}</p>
-              </div>
+          <div
+            ref={messagesContainerRef}
+            key={index}
+            className={`${msg.fromSelf ? 'sent' : 'received'}`}
+          >
+            <div className='content'>
+              <p>{msg.message}</p>
             </div>
-            {index === messages.length - 1 && <div ref={scrollRef}></div>}
           </div>
         ))}
       </div>
       <ChatInput handleSendMsg={handleSendMsg} />
     </Container>
-  );
-};
+  )
+}
 
-export default ChatContainer;
+export default ChatContainer
 
 const Container = styled.div`
   display: grid;
-  grid-template-rows: 80% 20%;
+  grid-template-rows: 10% 80% 10%;
   gap: 0.1rem;
   overflow: hidden;
-
+  .header {
+    display: flex;
+    background-color:whitesmoke;
+    justify-content:space-between;
+    align-items: center;
+    padding: 0 2rem;
+    .user-details {
+      display: flex;
+      align-items: center;
+      gap:1rem;
+      .avatar{
+        img{
+          height:3rem;
+        }
+      }
+    }
+  }
   .chat-messages {
     padding: 1rem 2rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
     overflow-y: auto;
-
-    .msg {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 1rem;
-
-      &.received {
-        justify-content: flex-start;
-      }
-
-      .content {
-        padding: 0.4em;
-        border-radius: 0.5rem;
-        background-color: #113baf1f; /* Sent messages background color */
-      }
-    }
   }
-`;
+
+  .received {
+    display: flex;
+    margin-bottom: 1rem;
+    justify-content: flex-start;
+  }
+
+  .sent {
+    display: flex;
+    margin-bottom: 1rem;
+    justify-content: flex-end;
+  }
+
+  .content {
+    padding: 0.4em;
+    border-radius: 0.5rem;
+    background-color: #113baf1f;
+  }
+`

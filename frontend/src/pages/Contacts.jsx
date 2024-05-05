@@ -142,13 +142,13 @@ const Container = styled.div`
     gap: 2rem;
     .avatar {
       img {
-        height: 4rem;
-        max-inline-size: 100%;
+        height: 3rem;
       }
     }
     .username {
       h1 {
         color: white;
+        font-size:1.5rem;
       }
     }
     @media screen and (min-width: 720px) and (max-width: 1080px) {
